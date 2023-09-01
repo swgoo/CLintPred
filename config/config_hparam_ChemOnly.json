@@ -1,0 +1,32 @@
+{
+	"name": "ClintPred_ChemBERTaOnly",
+
+	"model_name" : "seyonec/PubChem10M_SMILES_BPE_450k",
+
+    "num_seed" : 42,
+	"gpu_id" : "2,3",
+	
+	"data_folder": "./dataset/0_NoneOpt",
+	"train_file" : "train_data_221027.csv",
+	"test_file" : "test_data_221027.csv",
+
+	"valid_source" : "test",
+	"valid_rate" : 0.6,
+
+	"load_model": "regression_bindingDB",
+    
+	"max_epoch": 50,
+    "log_path" : "./log/model_ChemBERTaOnly",
+
+	"batch_size": 64,
+	"num_workers": 8,
+    "max_length" : 64,
+
+	"lr": 3e-5,
+	"dropout" : 0.1,
+
+	"use_2type_prot" : true,
+	"affinity_sorting" : true,
+	"abundunce": false
+}
+

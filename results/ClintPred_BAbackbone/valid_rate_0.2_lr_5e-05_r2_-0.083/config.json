@@ -1,0 +1,17 @@
+{
+	"use_2type_prot": true,
+	"sorting": true,
+	"abundance": false,
+	"load_model": "regression_bindingDB",
+	"lr": 5e-05,
+	"dropout": 0.1,
+	"act_func": [
+		"relu",
+		"relu",
+		"relu"
+	],
+	"valid_source": "train",
+	"valid_rate": 0.2,
+	"mse": "2.7215796",
+	"r2": "-0.0830940260575943"
+}

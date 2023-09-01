@@ -1,0 +1,7 @@
+{
+	"load_model": "regression_bindingDB",
+	"lr": 5e-06,
+	"dropout": 0.1,
+	"mse": "2.4831773374929593",
+	"r2": "0.0014693846558091472"
+}

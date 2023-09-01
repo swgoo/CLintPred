@@ -1,0 +1,15 @@
+torch
+torchaudio
+torchvision
+pytorch-lightning
+transformers
+numpy
+pandas
+tqdm
+sklearn
+wandb
+easydict
+fastprogress
+datasets
+einops
+plotly

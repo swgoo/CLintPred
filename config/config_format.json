@@ -1,0 +1,8 @@
+{
+    "method": ["bayes", "grid", "random"],
+    "num_seed" : {
+        "distribution": "int_uniform",
+        "min": 42,
+        "max": 1000
+    }
+}
