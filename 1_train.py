@@ -6,16 +6,16 @@ import torch
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
-from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from transformers import AutoTokenizer
 
 import wandb
 
-from utils.utils import DictX, load_hparams, load_protdata, load_chemdata, save_result, inverse_data
+from utils.utils import DictX, load_hparams, load_protdata, load_chemdata, save_result
 from modules.dataloader import BiomakerDataModule, clearanceDatamodule
 from modules.biomarker import BiomarkerModel, BindingAffinityModel
-from modules.clearance import clearanceDecoderModel, clearanceEncoderModel
+from modules.clearance import clearanceMLPModel, clearanceDecoderModel, clearanceEncoderModel
 
 
 ## -- Logger Type -- ##
@@ -45,31 +45,33 @@ def concat_predData(pred_result, affinity_columns):
     return df_result
 
 
-def pred_affinityData(model, affinity_path, affinity_columns, config, prot_obj, train_obj, test_obj=None):
+def pred_affinity(model, chem_tokenizer, prot_tokenizer,
+                  df_chem, df_prot,
+                  pred_file, config):
+
     ## -- predict datset -- ##
     trainer = pl.Trainer(accelerator='gpu',
-                            strategy='dp', 
-                            devices=config.gpu_id)
+                        strategy='dp', 
+                        devices=config.gpu_id)
+
+    train_obj = chem_tokenizer(np.array(df_chem["SMILES"]).tolist(), padding='max_length', 
+                            max_length=config.chem_max, truncation=True, return_tensors="pt")
+    prot_obj = prot_tokenizer(np.array(df_prot["aas"]).tolist(), padding='max_length', 
+                            max_length=config.prot_max, truncation=True, return_tensors="pt")
     
-    train_datamodule = BiomakerDataModule(train_obj, prot_obj, config)
-    pred_train = trainer.predict(model, train_datamodule)
+    affinity_dm = BiomakerDataModule(train_obj, prot_obj, config)
+    pred_train = trainer.predict(model, datamodule=affinity_dm)
 
-    train_affinities  = concat_predData(pred_train, affinity_columns)
-    train_affinities.to_csv(f"{affinity_path}/{config.train_file}", index=False)
+    affinity_columns = list(df_prot["name"])
+    affinities = concat_predData(pred_train, affinity_columns)
+    affinities = pd.concat([df_chem["SMILES"], affinities], axis=1)
 
-    if test_obj != None:
-        test_datamodule = BiomakerDataModule(test_obj, prot_obj, config)
-        pred_test = trainer.predict(model, test_datamodule)
-        
-        test_affinities = concat_predData(pred_test, affinity_columns)
-        test_affinities.to_csv(f"{affinity_path}/{config.test_file}", index=False)
-        
-        return train_affinities, test_affinities
-    
-    return train_affinities
+    affinities.to_csv(pred_file, index=False)
+
+    return affinities
 
 
-def main(config):
+def main(config=None):
     try: 
         ##-- hyper param config file Load --##
         if run_type == TENSOR:
@@ -98,104 +100,114 @@ def main(config):
         chem_tokenizer = AutoTokenizer.from_pretrained(config.chem_model)
         prot_tokenizer = AutoTokenizer.from_pretrained(config.prot_model)
 
-
+        
         ## -- load protain and chemical dataset -- ##
         prot_path = config.prot_file
         df_protData = load_protdata(prot_path, config.extend_protType)
-        affinity_columns = list(df_protData["name"])
-
+        
         train_path =  os.path.join(config.data_folder, config.train_dataType, config.train_file)
         test_path = os.path.join(config.data_folder, config.train_dataType, config.test_file)
-        
-        df_trainData, train_scaler = load_chemdata(train_path, config.feature_type, config.scale)
-        
-
-        ## -- Tokenization load Dataset -- ##
-        prot_obj = prot_tokenizer(np.array(df_protData["aas"]).tolist(), padding='max_length', 
-                                    max_length=config.prot_max, truncation=True, return_tensors="pt")
-        train_obj = chem_tokenizer(np.array(df_trainData["SMILES"]).tolist(), padding='max_length', 
-                                    max_length=config.chem_max, truncation=True, return_tensors="pt")
-        
-
-        ## -- Test data load and Tokenization load Dataset -- ##
-        test_obj = None
-        if os.path.exists(test_path):
-            df_testData, test_scaler = load_chemdata(test_path, config.feature_type, config.scale, True)
-
-            test_obj = chem_tokenizer(np.array(df_testData["SMILES"]).tolist(), padding='max_length', 
-                                    max_length=config.chem_max, truncation=True, return_tensors="pt")
-        
-        datacols = list(df_trainData.columns[1:])
-       
-        
-        ## -- model declaration -- ##
-        checkpoint_name = str(config.checkpoint_name).lower()
-        ckpt_file = os.path.join("./checkpoint", f"{checkpoint_name}.ckpt")
-
-        if checkpoint_name == "biomarker":
-            model = BiomarkerModel.load_from_checkpoint(ckpt_file)
-        else:
-            model = BindingAffinityModel.load_from_checkpoint(ckpt_file)
 
 
         ## -- binding affinity prediction -- ##
+        checkpoint_name = str(config.checkpoint_name).lower()
+
         affinity_path = os.path.join(config.affinity_folder, checkpoint_name, config.train_dataType)
         if not os.path.exists(affinity_path):
             os.makedirs(affinity_path)
 
         train_affinityFile, test_affinityFile = f"{affinity_path}/{config.train_file}", f"{affinity_path}/{config.test_file}"
 
-        if not os.path.exists(train_affinityFile):
-            if os.path.exists(test_path):
-                train_affinity, test_affinity = pred_affinityData(model, affinity_path, affinity_columns, config, prot_obj, train_obj, test_obj)
-                train_labels, test_labels = df_trainData["Clint"], df_testData["Clint"]
+        ## -- model declaration -- ##
+        if not os.path.exists(train_affinityFile) or not os.path.exists(test_affinityFile):
+            ckpt_file = os.path.join("./checkpoint", f"{checkpoint_name}.ckpt")
 
-                df_trainfeatures = pd.concat([train_affinity, df_trainData.iloc[:, 2:]], axis=1) if config.feature_type.lower() != "default" else train_affinity
-                df_testfeatures = pd.concat([test_affinity, df_testData.iloc[:, 2:]], axis=1) if config.feature_type.lower() != "default" else test_affinity
-
+            if checkpoint_name == "regression_bindingDB":
+                model = BindingAffinityModel.load_from_checkpoint(ckpt_file)
             else:
-                train_affinity = pred_affinityData(model, affinity_path, affinity_columns, config, prot_obj, train_obj)
-                train_labels = df_trainData["Clint"]
-                df_trainfeatures = pd.concat([train_affinity, df_trainData.iloc[:, 2:]], axis=1) if config.feature_type.lower() != "default" else train_affinity
+                model = BiomarkerModel.load_from_checkpoint(ckpt_file)
             
-        else:
-            train_affinity = pd.read_csv(train_affinityFile)
+        ## -- Predict binding Affinity -- ##
+        df_train = pd.read_csv(train_path)
+        train_affinity = pd.read_csv(train_affinityFile) if os.path.exists(train_affinityFile) else pred_affinity(model, chem_tokenizer, prot_tokenizer, 
+                                                                                                                    df_train, df_protData,
+                                                                                                                    train_affinityFile, config)
+        
+        if os.path.exists(test_path):
+            df_test = pd.read_csv(test_path)
+            test_affinity = pd.read_csv(test_affinityFile) if os.path.exists(test_affinityFile) else pred_affinity(model, chem_tokenizer, prot_tokenizer, 
+                                                                                                                    df_test, df_protData,
+                                                                                                                    test_affinityFile, config)
+            
+            df_trainData, train_scaler, df_trainAff, df_trainRdkitLabel = load_chemdata(df_train, train_affinity, config.feature_type, config.scale, config.augmentation)
+            df_trainfeatures = pd.concat([df_trainAff.iloc[:, 1:], df_trainData.iloc[:, 2:]], axis=1) if config.feature_type.lower() != "default" else df_trainAff.iloc[:, 1:]
             train_labels = df_trainData["Clint"]
-            df_trainfeatures = pd.concat([train_affinity, df_trainData.iloc[:, 2:]], axis=1) if config.feature_type.lower() != "default" else train_affinity
-                
-            if os.path.exists(test_path):
-                test_affinity = pd.read_csv(test_affinityFile)
-                test_labels = df_testData["Clint"]
-                df_testfeatures = pd.concat([test_affinity, df_testData.iloc[:, 2:]], axis=1) if config.feature_type.lower() != "default" else test_affinity
 
-        ## -- predict Clearance -- ##
-        # early_stop_callback = EarlyStopping(monitor="val_loss", min_delta=0.00, patience=5, verbose=5, mode="min")
+            df_testData, test_scaler, df_testAff, df_testRdkitLabel = load_chemdata(df_test, test_affinity, config.feature_type, config.scale)
+            df_testfeatures = pd.concat([df_testAff.iloc[:, 1:], df_testData.iloc[:, 2:]], axis=1) if config.feature_type.lower() != "default" else df_testAff.iloc[:, 1:]
+            test_labels = df_testData["Clint"]
+
+        else:
+            df_test = df_train.sample(frac=0.2, random_state=config.num_seed)
+            df_train = df_train.drop(df_test.index)
+            df_train, df_test = df_train.reset_index(drop=True), df_test.reset_index(drop=True)
+
+            df_trainData, train_scaler, df_trainAff, df_trainRdkitLabel = load_chemdata(df_train, train_affinity, config.feature_type, config.scale, config.augmentation)
+            df_trainfeatures = pd.concat([df_trainAff.iloc[:, 1:], df_trainData.iloc[:, 2:]], axis=1) if config.feature_type.lower() != "default" else df_trainAff.iloc[:, 1:]
+            train_labels = df_trainData["Clint"]
+
+            df_testData, test_scaler, df_testAff, df_testRdkitLabel = load_chemdata(df_test, train_affinity, config.feature_type, config.scale)
+            df_testfeatures = pd.concat([df_testAff.iloc[:, 1:], df_testData.iloc[:, 2:]], axis=1) if config.feature_type.lower() != "default" else df_testAff.iloc[:, 1:]
+            test_labels = df_testData["Clint"]
+        
+
+        checkpoint_callback = ModelCheckpoint(f"{config.model_type}_{config.feature_type}_{config.num_seed}", save_top_k=1, monitor="valid_MSE", mode="min")
 
         trainer = pl.Trainer(
             devices=config.gpu_id,
             max_epochs=config.max_epoch,
             logger = logger,
-            # callbacks=[early_stop_callback],
+            callbacks=[checkpoint_callback],
             num_sanity_val_steps=0,
             accelerator='gpu',
             strategy='dp'           
         )
 
+        datacols = list(df_trainData.columns[1:])
         feature_dim = len(df_trainfeatures.columns)
-        datamodule = clearanceDatamodule(df_trainfeatures, df_testfeatures, 
-                                         train_labels, test_labels, train_scaler, test_scaler, 
-                                         config.batch_size, config.num_workers, train_obj, test_obj)
+
+        datamodule = clearanceDatamodule(chem_tokenizer, 
+                                         df_trainData, df_testData,
+                                         df_trainfeatures, df_testfeatures, 
+                                         train_labels, test_labels,
+                                         train_scaler, test_scaler, 
+                                         config.chem_max, config.batch_size, config.num_workers)
         ## -- clearance model declaration -- ##
-        clearance_model = clearanceDecoderModel(config.lr, config.dropout, config.chem_model, feature_dim,
-                                                df_trainData[datacols], df_testData[datacols])
-        # clearance_model = clearanceEncoderModel(config.lr, config.dropout, config.chem_model, feature_dim,
-        #                                         df_trainData[datacols], df_testData[datacols])
+        if config.model_type == "decoder":
+            clearance_model = clearanceDecoderModel(config.lr, config.dropout, config.chem_model, feature_dim,
+                                                    df_trainData[datacols], df_testData[datacols])
+        elif config.model_type == "encoder":
+            clearance_model = clearanceEncoderModel(config.lr, config.dropout, config.chem_model, feature_dim,
+                                                    df_trainData[datacols], df_testData[datacols])
+        else:
+            # clearance_model = clearanceMLPModel(config.lr, config.dropout, config.chem_model, feature_dim,
+            #                                     df_trainData[datacols], df_testData[datacols], config.act_func)
+            clearance_model = clearanceEncoderModel(config.lr, config.dropout, config.chem_model, feature_dim,
+                                                    df_trainData[datacols], df_testData[datacols])
+            
         trainer.fit(clearance_model, datamodule)
         
         clearance_model.eval()
         trainer.test(clearance_model, datamodule)
 
-        save_result(config, project_name, clearance_model.test_result, clearance_model.test_log)
+        ## -- connecting result data to rdkit feature range -- ##
+        dict_result = {"SMILES": df_testData["SMILES"], "predict": clearance_model.test_result['preds'], "Clint": clearance_model.test_result['labels']}
+        df_result = pd.DataFrame.from_dict(dict_result)
+
+        df_result = pd.concat([df_result, df_testRdkitLabel], axis=1)
+
+        resultData_path = f"{project_name}_{config.checkpoint_name}_{config.feature_type}"
+        save_result(config, resultData_path, df_result, clearance_model.test_log, df_trainData, df_testData)
     
     except Exception as e:
         print(e)

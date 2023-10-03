@@ -1,0 +1,11 @@
+{
+	"load_model": "biomarker",
+	"feature_data": "all",
+	"data_augmentation": true,
+	"protainData_extended": true,
+	"lr": 5e-05,
+	"dropout": 0.1,
+	"MSE": "1.494620265410075",
+	"MAE": "0.9322364484071337",
+	"r2": "0.10536394067966903"
+}

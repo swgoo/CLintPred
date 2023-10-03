@@ -1,0 +1,52 @@
+{
+    "name": "ClintPreds_fin",
+    "method": "grid",
+    "metric": {
+        "name": "valid_MSE",
+        "goal": "minimize"
+    },
+    "parameters":{
+        
+        "num_seed" : {"value": 120},
+        "gpu_id" : {"value": "4,5,6,7"},
+
+        "chem_model" : {"value": "seyonec/PubChem10M_SMILES_BPE_450k"},
+	    "prot_model" : {"value": "Rostlab/prot_bert_bfd"},
+        
+        "data_folder": {"value": "./dataset/fin"},
+        "affinity_folder": {"value": "./dataset/affinity_fin/"},
+
+        "train_file" : {"value": "train.csv"},
+        "test_file" : {"value": "test.csv"},
+        "prot_file": {"value": "./dataset/liver_aas.csv"},
+        
+        "checkpoint_name":{
+            "values": ["biomarker", "regression_bindingDB"]
+        },
+	    "train_dataType": {
+            "values": ["newdata_nonvivo", "newdata"]
+        },
+        
+        "chem_max" : {"value": 64},
+	    "prot_max" : {"value": 545},
+        
+        "extend_protType" : {"value": true},
+        "scale" : {"value": true},
+
+        "augmentation" : {"values": [true, false]},
+        "feature_type" : {
+            "values": ["default", "features", "rdkit", "all"]
+        },
+        "model_type": {"values": ["decoder", "encoder"]},
+
+        "max_epoch": {"value": 30},
+        "log_path" : {"value": "./log/ClintPred_fin_Decoder"},
+
+        "batch_size": {"values": [32, 64]},
+        "num_workers": {"value": 8},
+        "act_func": {"value": ["relu", "relu", "relu"]},
+
+        "lr": {"value": 5e-5},
+        "dropout" : {"value": 0.1}
+    }
+}

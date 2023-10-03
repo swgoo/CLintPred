@@ -7,6 +7,8 @@ from sklearn.linear_model import LinearRegression
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+rangeLabel_col = ["MW_range", "PSA_range", "NRB_range", "HBA_range", "HBD_range", "LogP_range"]
+
 def draw_plot(result_path:str, save_path:str):
     ## -- predict plot save -- ##
     # df_plot = pd.read_csv(os.path.join("../", result_path))
@@ -80,6 +82,53 @@ def draw_plot(result_path:str, save_path:str):
         legend_tracegroupgap = 320,
         xaxis2_range=[-0.5, int(max(labels)) + 1],
         yaxis2_range=[-0.5, int(max(labels)) + 1],
+    )
+    
+    # fig.write_image(os.path.join("../", save_path))
+    fig.write_image(save_path)
+
+
+
+def draw_boxplot(result_path:str, save_path:str):
+    ## -- predict plot save -- ##
+    x_axisName = ["molecular weight", "PSA", "Number of Rotatable Bonds",
+                  "Number of Hydrogen-Bond Acceptors", "Number of Hydrogen-Bond Donors", "LogP"]
+    
+    df_plot = pd.read_csv(result_path)
+    y_labels, y_predict = df_plot['Clint'], df_plot['predict']
+    fig = make_subplots(rows=3, cols=2)
+
+    for idx, axisName in enumerate(x_axisName):
+        x_labels, x_predict = df_plot[rangeLabel_col[idx]], df_plot[rangeLabel_col[idx]]
+        row_numb, col_numb = (idx // 2) + 1, (idx % 2) + 1
+
+        fig.add_trace(go.Box(x=x_labels, y=y_labels,
+                            name="Label",
+                            jitter=0.3,
+                            pointpos=-1.8,
+                            boxpoints='all', # represent all points
+                            marker_color='rgb(7,40,89)',
+                            line_color='rgb(7,40,89)',
+                            legendgroup="1"), row=row_numb, col=col_numb)
+        
+        fig.add_trace(go.Scatter(x=x_predict, y=y_predict,
+                                 name="Prediction",
+                                 jitter=0.3,
+                                 pointpos=-1.8,
+                                 boxpoints='all', # represent all points
+                                 marker_color='rgb(7,40,89)',
+                                 line_color='rgb(7,40,89)',
+                                 legendgroup="1"), row=row_numb, col=col_numb)
+            
+        fig.update_xaxes(title_text=x_axisName[idx], row=row_numb, col=col_numb)
+        fig.update_yaxes(title_text='Intrinsic CL(Log Scale)', row=row_numb, col=col_numb)
+
+
+    fig.update_layout(
+        height=800, 
+        width=800, 
+        title_text="Compare Observed Clint to Prediction results", 
+        legend_tracegroupgap = 320,
     )
     
     # fig.write_image(os.path.join("../", save_path))

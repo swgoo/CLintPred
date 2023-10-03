@@ -77,97 +77,71 @@ class clearanceDataset(Dataset):
         return len(self.labels)
 
     def __getitem__(self, idx):
-
         data = {"input_ids": self.data["input_ids"][idx], 
                 "attention_mask": self.data["attention_mask"][idx]}
         
+        labels = self.labels[idx]
         features = self.features[idx]
-        label = self.labels[idx]
-
-        return data, features, label
+        
+        return data, labels, features
         
 
 class clearanceDatamodule(pl.LightningDataModule):
-    def __init__(self,
-                 df_trainfeatures:pd.DataFrame, df_testfeatures:pd.DataFrame, 
-                 df_trainlabels, df_testlabels,
+    def __init__(self, chem_tokenizer,
+                 df_trainData, df_testData,
+                 df_trainfeatures, df_testfeatures, 
+                 df_trainLabel, df_testLabel,
                  train_scaler, test_scaler,
-                 batch_size: int, num_workers: int, 
-                 train_obj, test_obj = None):
+                 max_length:int, batch_size: int, num_workers: int):
         super().__init__()
-        self.df_trainfeatures = df_trainfeatures
-        self.df_testfeatures = df_testfeatures
+        self.chem_tok = chem_tokenizer
 
-        self.df_trainlabels = df_trainlabels
-        self.df_testlabels = df_testlabels
+        self.df_trainData, self.df_testData = df_trainData, df_testData
+        self.df_trainfeatures, self.df_testfeatures = df_trainfeatures, df_testfeatures
 
-        self.train_scaler = train_scaler
-        self.test_scaler = test_scaler
+        self.df_trainLabel, self.df_testLabel = df_trainLabel, df_testLabel
+        self.train_scaler, self.test_scaler = train_scaler, test_scaler
         
+        self.max_length = max_length
         self.batch_size = batch_size
         self.num_workers = num_workers
         
-        self.train_obj = train_obj
-        self.test_obj = test_obj
-
         self.is_load_file = False
-        self.sep_test = False
 
     def prepare_data(self):
         if not self.is_load_file:
-            if self.test_obj != None:
-                self.train_pos = int(len(self.train_obj['input_ids']) * 0.8)
+            train_set, test_set = np.array(self.df_trainData["SMILES"]).tolist(), np.array(self.df_testData["SMILES"]).tolist()
+            self.train_pos = int(len(self.df_trainData) * 0.8)
 
-                self.train_data = {"input_ids":self.train_obj["input_ids"][:self.train_pos], 
-                                "attention_mask": self.train_obj["attention_mask"][:self.train_pos]}
-                self.valid_data = {"input_ids":self.train_obj["input_ids"][self.train_pos:], 
-                                "attention_mask": self.train_obj["attention_mask"][self.train_pos:]}
-                
-                self.train_labels = torch.from_numpy(np.array(self.df_trainlabels[:self.train_pos]))
-                self.valid_labels = torch.from_numpy(np.array(self.df_trainlabels[self.train_pos:]))
-
-                self.train_features = torch.from_numpy(np.array(self.df_trainfeatures[:self.train_pos])) 
-                self.valid_features = torch.from_numpy(np.array(self.df_trainfeatures[self.train_pos:]))
-                
-                self.test_data = self.test_obj
-                self.test_labels = torch.from_numpy(np.array(self.df_testlabels))
-                self.test_features = torch.from_numpy(np.array(self.df_testfeatures))
-
-            else:
-                self.train_pos = int(len(self.train_obj['input_ids']) * 0.6)
-                self.valid_pos = self.train_pos + int(len(self.train_obj['input_ids']) * 0.2)
-
-                self.train_data = {"input_ids":self.train_obj["input_ids"][:self.train_pos], 
-                                "attention_mask": self.train_obj["attention_mask"][:self.train_pos]}
-                self.valid_data = {"input_ids":self.train_obj["input_ids"][self.train_pos:self.valid_pos], 
-                                "attention_mask": self.train_obj["attention_mask"][self.train_pos:self.valid_pos]}
-                self.test_data = {"input_ids":self.train_obj["input_ids"][self.valid_pos:], 
-                                "attention_mask": self.train_obj["attention_mask"][self.valid_pos:]}
-                
-                self.train_labels = torch.from_numpy(np.array(self.df_trainlabels[:self.train_pos]))
-                self.valid_labels = torch.from_numpy(np.array(self.df_trainlabels[self.train_pos:self.valid_pos]))
-                self.test_labels = torch.from_numpy(np.array(self.df_trainlabels[self.valid_pos:]))
-
-                self.train_features = torch.from_numpy(np.array(self.df_trainfeatures[:self.train_pos])) 
-                self.valid_features = torch.from_numpy(np.array(self.df_trainfeatures[self.train_pos:self.valid_pos]))
-                self.test_features = torch.from_numpy(np.array(self.df_trainfeatures[self.valid_pos:]))
-
-                self.sep_test = True
+            self.train_obj = self.chem_tok(train_set[:self.train_pos], padding='max_length', 
+                            max_length=self.max_length, truncation=True, return_tensors="pt")
+            self.valid_obj = self.chem_tok(train_set[self.train_pos:], padding='max_length', 
+                            max_length=self.max_length, truncation=True, return_tensors="pt")
+            self.test_obj = self.chem_tok(test_set, padding='max_length', 
+                            max_length=self.max_length, truncation=True, return_tensors="pt")
+            
+            self.train_features = torch.from_numpy(np.array(self.df_trainfeatures[:self.train_pos])) 
+            self.valid_features = torch.from_numpy(np.array(self.df_trainfeatures[self.train_pos:]))
+            self.test_features = torch.from_numpy(np.array(self.df_testfeatures))
+            
+            self.train_label = torch.from_numpy(np.array(self.df_trainLabel[:self.train_pos])) 
+            self.valid_label = torch.from_numpy(np.array(self.df_trainLabel[self.train_pos:]))
+            self.test_label = torch.from_numpy(np.array(self.df_testLabel))
 
             self.is_load_file = True
 
     def setup(self, stage: Optional[str] = None) -> None:
         if stage == 'fit' or stage is None:
-            self.train_dataset = clearanceDataset(self.train_data, self.train_features, self.train_labels)
-            self.valid_dataset = clearanceDataset(self.valid_data, self.valid_features, self.valid_labels)
+            self.train_dataset = clearanceDataset(self.train_obj, self.train_features, self.train_label)
+            self.valid_dataset = clearanceDataset(self.valid_obj, self.valid_features, self.valid_label)
         
-        self.test_dataset = clearanceDataset(self.test_data, self.test_features, self.test_labels)
+        self.test_dataset = clearanceDataset(self.test_obj, self.test_features, self.test_label)
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers, pin_memory=True)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=True)
 
     def val_dataloader(self):
-        return DataLoader(self.valid_dataset, batch_size=self.batch_size, num_workers=self.num_workers, pin_memory=True)
+        return DataLoader(self.valid_dataset, batch_size=self.batch_size, num_workers=self.num_workers)
         
     def test_dataloader(self):
         return DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=self.num_workers)

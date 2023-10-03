@@ -1,0 +1,11 @@
+{
+	"load_model": "biomarker",
+	"feature_data": "rdkit",
+	"data_augmentation": false,
+	"protainData_extended": true,
+	"lr": 5e-05,
+	"dropout": 0.1,
+	"MSE": "1.288432440219059",
+	"MAE": "0.8874053665427094",
+	"r2": "0.12155941666227443"
+}
