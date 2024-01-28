@@ -23,21 +23,22 @@
         "checkpoint_name":{
             "values": ["biomarker", "regression_bindingDB"]
         },
-	    "train_dataType": {
-            "values": ["newdata_nonvivo", "newdata"]
-        },
+	    "train_dataType": {"value": "newdata_nonvivo"},
         
-        "chem_max" : {"value": 64},
+        "chem_max" : {"value": 512},
 	    "prot_max" : {"value": 545},
         
         "extend_protType" : {"value": true},
         "scale" : {"value": true},
 
         "augmentation" : {"values": [true, false]},
+        "model_type": {"values": ["decoder", "encoder"]},
+
+        "sampling_type" : {"value" : "all"},
         "feature_type" : {
             "values": ["default", "features", "rdkit", "all"]
         },
-        "model_type": {"values": ["decoder", "encoder"]},
+        
 
         "max_epoch": {"value": 30},
         "log_path" : {"value": "./log/ClintPred_fin_Decoder"},

@@ -1,0 +1,41 @@
+{
+	"name": "ClintPreds_chembertaOnly",
+
+	"chem_model" : "seyonec/PubChem10M_SMILES_BPE_450k",
+	"prot_model" : "Rostlab/prot_bert_bfd",
+	
+    "num_seed" : [241, 342, 510],
+	
+	"data_folder": "./dataset/fin/",
+	"affinity_folder": "./dataset/affinity_fin/",
+
+	"train_file" : "train.csv",
+	"test_file" : "test.csv",
+	"prot_file": "./dataset/liver_aas.csv",
+
+	"checkpoint_name":"biomarker",
+	"train_dataType": "newdata_nonvivo_sort",
+	"model_type": "mlp",
+	
+	"chem_max" : 512,
+	"prot_max" : 545,
+
+    "extend_protType" : true,
+	"scale" : true,
+	"augmentation" : false,
+	
+	"sampling_type" : "all",
+	"feature_type" : ["default", "features", "rdkit", "all"],
+	"test_rate" : 0.2,
+    
+	"log_path" : "./log/",
+
+	"max_epoch": 15,
+	"batch_size": 32,
+	"num_workers": 16,
+	"act_func": [["relu", "relu", "relu"]],
+
+	"lr": 5e-5,
+	"dropout" : 0.1
+}
+

@@ -88,6 +88,96 @@ def draw_plot(result_path:str, save_path:str):
     fig.write_image(save_path)
 
 
+def draw_boundaryplot(df_plot:pd.DataFrame, save_path:str, df_duplData:pd.DataFrame = None):
+    variance_list =[abs(data - df_plot['Clint'][idx])/df_plot['predict'].mean() for idx, data in enumerate(df_plot['predict'])]
+    df_plot["variance"] = variance_list
+
+    variance_boundary = 0.5
+    labels, predict = df_plot["Clint"], df_plot["predict"]
+    in_labels, in_predict = df_plot[df_plot["variance"] <= variance_boundary]['Clint'], df_plot[df_plot["variance"] <= variance_boundary]['predict']
+    out_labels, out_predict = df_plot[df_plot["variance"] > variance_boundary]['Clint'], df_plot[df_plot["variance"] > variance_boundary]['predict']
+
+    x_extended = np.linspace(df_plot['Clint'].min() - 1, df_plot['Clint'].max() + 1, 200)
+
+    grad, bias = np.polyfit(labels, predict, 1)  
+    yhat = grad* x_extended + bias
+
+    in_grad, in_bias = np.polyfit(in_labels, in_predict, 1)  
+    in_yhat = in_grad* x_extended + in_bias
+
+    scatter = go.Scatter(x=labels, y=predict,
+                            mode='markers',
+                            name="Predict_point")
+    
+    out_scatter = go.Scatter(x=out_labels, y=out_predict,
+                            mode='markers',
+                            name="out_bound",
+                            )
+    
+    trend_line = go.Scatter(x=x_extended, y=yhat,
+                            mode="lines",
+                            name="trend line",
+                            line=dict(shape="linear", color="red", width=2, dash="dot"))
+    
+    in_trend_line = go.Scatter(x=x_extended, y=in_yhat,
+                            mode="lines",
+                            name="in-variance trend line",
+                            line=dict(shape="linear", color="olive", width=2, dash="dot"))
+
+    ideal_list = list(range(-1, int(max(labels)) + 3))
+    ideal_x, ideal_y = ideal_list, ideal_list
+
+    ideal_line = go.Scatter(x=ideal_x, y=ideal_y,
+                            mode="lines",
+                            name="ideal",
+                            line=dict(shape="linear", color="black", width=2, dash="dot"))
+
+    if df_duplData is None:
+        fig = go.Figure(data=[scatter, out_scatter, trend_line, in_trend_line, ideal_line])
+    else:
+        df_duplPos = df_plot[df_plot["SMILES"].isin(df_duplData["SMILES"])]
+        dup_labels, dup_predict = df_duplPos[df_duplPos["variance"] > variance_boundary]['Clint'], df_duplPos[df_duplPos["variance"] > variance_boundary]['predict']
+
+        dup_scatter = go.Scatter(x=dup_labels, y=dup_predict,
+                                mode='markers',
+                                name="duplicate_bound",
+                                )
+        
+        fig = go.Figure(data=[scatter, out_scatter, dup_scatter, trend_line, in_trend_line, ideal_line])
+
+    fig.update_layout(
+        height=800, 
+        width=800, 
+        title_text="Compare Observed Clint to Prediction results", 
+        xaxis_title = 'Observed',
+        yaxis_title = 'Predicted',
+        legend_tracegroupgap = 320,
+        xaxis_range=[-0.5, int(max(labels)) + 1],
+        yaxis_range=[-0.5, int(max(labels)) + 1],
+        plot_bgcolor='white',  # Set the background color to white
+        xaxis=dict(
+            showgrid=True, 
+            gridcolor='lightgrey', 
+            gridwidth=1, 
+            griddash='dash',  # Set the x-axis grid lines to light grey dashed
+            linecolor='black',  # Set x-axis line color to black
+            linewidth=2,  # Set x-axis line width
+        ),
+        yaxis=dict(
+            showgrid=True, 
+            gridcolor='lightgrey', 
+            gridwidth=1, 
+            griddash='dash',  # Set the y-axis grid lines to light grey dashed
+            linecolor='black',  # Set y-axis line color to black
+            linewidth=2,  # Set y-axis line width
+        )
+    )
+
+    fig.write_image(save_path)
+    
+    return grad, in_grad
+    
+
 
 def draw_boxplot(result_path:str, save_path:str):
     ## -- predict plot save -- ##

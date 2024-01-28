@@ -19,7 +19,9 @@ from pytorch_lightning.core.module import LightningModule
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
 from utils.normalize_process import inverse_scaling, norm_shuffledSet
-from utils.utils import load_protdata, make_sequential
+from modules.LayerModule import make_sequential
+from utils.preprocess import load_protdata
+
 from modules.models import RegressionPredictModel, DTIPredictionModel
 
 

@@ -5,6 +5,7 @@ import pytorch_lightning as pl
 
 from utils.utils import *
 from transformers import AutoConfig, RobertaModel, BertModel
+from modules.LayerModule import get_actfunction
 
 
 activation = {}

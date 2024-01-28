@@ -3,7 +3,7 @@ from typing import Any
 import torch
 import torch.nn as nn
 
-from utils.utils import deleteEncodingLayers
+from modules.LayerModule import deleteEncodingLayers
 
 import pytorch_lightning as pl
 from transformers import AutoConfig, RobertaModel, BertModel

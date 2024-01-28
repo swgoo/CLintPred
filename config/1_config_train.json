@@ -5,7 +5,7 @@
 	"prot_model" : "Rostlab/prot_bert_bfd",
 	
     "num_seed" : 120,
-	"gpu_id" : "4,5,6,7",
+	"gpu_id" : "1,",
 	
 	"data_folder": "./dataset/fin/",
 	"affinity_folder": "./dataset/affinity_fin/",
@@ -16,22 +16,24 @@
 
 	"checkpoint_name":"biomarker",
 	"train_dataType": "newdata_nonvivo_sort",
-	"model_type": "mlp",
+	"model_type": "decoder",
 	
-	"chem_max" : 128,
+	"chem_max" : 512,
 	"prot_max" : 545,
 
     "extend_protType" : true,
 	"scale" : true,
 	"augmentation" : true,
+	
+	"sampling_type" : "all",
 	"feature_type" : "all",
-	"test_rate" : 0.4,
+	"test_rate" : 0.2,
     
 	"log_path" : "./log/ClintPreds_Mod",
 
-	"max_epoch": 20,
+	"max_epoch": 1,
 	"batch_size": 16,
-	"num_workers": 16,
+	"num_workers": 0,
 	"act_func": ["relu", "relu", "relu"],
 
 	"lr": 5e-5,
