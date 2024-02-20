@@ -10,7 +10,7 @@ import pytorch_lightning as pl
 from transformers import AutoTokenizer, AutoConfig, RobertaModel, BertModel
 
 from utils.utils import load_hparams, load_protdata, DictX
-from modules.dataloader_copy import BiomakerDataModule
+from modules.dataloader import BiomakerDataModule
 from modules.biomarker import BiomarkerModel, BindingAffinityModel
 
 from sklearn.preprocessing import StandardScaler, MinMaxScaler

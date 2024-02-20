@@ -4,7 +4,7 @@ import pandas as pd
 from itertools import product
 from easydict import EasyDict
 
-from utils.draw_plot import draw_plot, draw_boxplot, draw_boundaryplot
+from utils.plot import draw_boundaryplot
 
 
 class DictX(dict):
