@@ -1,4 +1,4 @@
-import os
+import os, json
 import copy
 
 import pandas as pd
@@ -108,7 +108,25 @@ def predict_clearance(config):
     else:
         # clearance_model = clearanceMLPModel(config.lr, config.dropout, config.chem_model, feature_length,
         #                                     config.act_func)
-        clearance_model = clearanceMLPModel.load_from_checkpoint('./checkpoint/mlp_all_120.ckpt')
+        # clearance_model = clearanceMLPModel.load_from_checkpoint('./checkpoint/mlp_all_120.ckpt')
+
+        # .pt 파일에서 state dict 로드
+        state_dict = torch.load('./checkpoint/mlp_all_120.pt')
+        
+        # hparams.json 파일에서 하이퍼파라미터 로드
+        with open('./checkpoint/hparams.json', 'r') as f:
+            hparams = json.load(f)
+            
+        clearance_model = clearanceMLPModel(
+            lr=hparams['lr'],
+            dropout=hparams['dropout'],
+            model_name=hparams['model_name'], 
+            feature_length=hparams['feature_length'],
+            act_func=hparams['act_func'],
+        )
+        
+        # 모델에 state dict 적용
+        clearance_model.load_state_dict(state_dict)
         
     
     datamodule = clearanceDatamodule(chem_tokenizer, config, 

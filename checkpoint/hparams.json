@@ -1,0 +1,1 @@
+{"lr": 5e-05, "dropout": 0.1, "model_name": "seyonec/PubChem10M_SMILES_BPE_450k", "feature_length": 31, "act_func": "relu", "df_testColData": null}
