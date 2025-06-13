@@ -2,8 +2,8 @@ import copy
 import torch
 import torch.nn as nn
 
-import pytorch_lightning as pl
 from transformers import RobertaModel, BertModel, BertConfig
+import pytorch_lightning as pl
 
 from modules.models import transformerDecoder, transformerEncoder
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
@@ -15,11 +15,10 @@ from utils.preprocess import inverse_data
 
 class clearanceMLPModel(pl.LightningModule):
     def __init__(self, lr, dropout, model_name, feature_length,
-                 df_trainColData, df_testColData, act_func):
+                 act_func, df_testColData=None):
         super().__init__()
         ## -- learning rate setting -- ##
         self.lr = lr
-        self.df_trainColData = df_trainColData
         self.df_testColData = df_testColData
 
         ## -- SMILES Attention model -- ##
@@ -37,9 +36,9 @@ class clearanceMLPModel(pl.LightningModule):
         ## -- clearance prediction model -- ##
         smiles_dim  = self.model.config.hidden_size + feature_hidden_size
 
-        self.output_decoder1 = make_sequential(smiles_dim, 512, act_func[0], dropout)
-        self.output_decoder2 = make_sequential(512, 256, act_func[1], dropout)
-        self.output_decoder3 = make_sequential(256, 32, act_func[2], dropout)
+        self.output_decoder1 = make_sequential(smiles_dim, 512, act_func, dropout)
+        self.output_decoder2 = make_sequential(512, 256, act_func, dropout)
+        self.output_decoder3 = make_sequential(256, 32, act_func, dropout)
         self.out_layers = nn.Linear(32, 1)
         
         ## -- optimizer function -- ##
@@ -162,6 +161,15 @@ class clearanceMLPModel(pl.LightningModule):
         self.log("test_R2", R2_score, on_step=False, on_epoch=True, logger=True)
         self.log("test_rm2", rm2_score, on_step=False, on_epoch=True, logger=True)
         self.log("test_CI", ci_score, on_step=False, on_epoch=True, logger=True)
+
+    def predict_step(self, batch, batch_idx):
+        smiles_input, *features = batch
+        if len(features) != 0:
+            features[0] = features[0].type(self.feature_model.dtype)
+
+        outputs = self(smiles_input, features)
+        return outputs.detach().cpu().numpy().tolist()
+
     
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(filter(lambda p:p.requires_grad, self.parameters()), lr=self.lr)

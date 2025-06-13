@@ -177,17 +177,17 @@ def train_function(config, logger):
 
     ## -- train, test column name setting -- ##
     train_datacols = list(df_trainData.columns[1:])
-    test_datacols = list(df_testData.columns[1:])
+    # test_datacols = list(df_testData.columns[1:])
     
     ## -- feature column name length -- ##
     feature_length = len(df_trainfeatures.columns)    
     
     ## -- datamodule -- ##
     datamodule = clearanceDatamodule(chem_tokenizer, config, 
-                                        df_trainData, df_testData,
-                                        train_labels, test_labels,
-                                        train_scaler, test_scaler,
-                                        df_trainfeatures, df_testfeatures)
+                                        df_trainData=df_trainData, 
+                                        df_trainLabel=train_labels, 
+                                        train_scaler=train_scaler,
+                                        df_trainfeatures=df_trainfeatures,)
     
     ## -- clearance model declaration -- ##
     if config.model_type.lower() == "decoder":
@@ -198,12 +198,12 @@ def train_function(config, logger):
                                                 df_trainData[train_datacols], df_testData[test_datacols])
     else:
         clearance_model = clearanceMLPModel(config.lr, config.dropout, config.chem_model, feature_length,
-                                            df_trainData[train_datacols], df_testData[test_datacols], config.act_func)
+                                            config.act_func[0])
         
     trainer.fit(clearance_model, datamodule)
     
-    clearance_model.eval()
-    trainer.test(clearance_model, datamodule)
+    # clearance_model.eval()
+    # trainer.test(clearance_model, datamodule)
 
     ## -- connecting result data to rdkit feature range -- ##
     dict_result = {"SMILES": df_testData["SMILES"], "predict": clearance_model.test_result['preds'], "Clint": clearance_model.test_result['labels']}
@@ -300,7 +300,7 @@ if __name__ == "__main__":
     parser.add_argument("--config", help="config_file", type=str, default="1_config_sweep.json")
     args = parser.parse_args()
 
-    run_type = TENSOR_SWEEP
+    run_type = TENSOR
     
     if run_type == SWEEP:
         config = load_hparams('config/sweep/1_config_train.json')

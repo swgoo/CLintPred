@@ -35,7 +35,15 @@ class BiomarkerModel(pl.LightningModule):
         layers.append(nn.Linear(firstfeature, layer_features[-1]))
         self.decoder = nn.Sequential(*layers)
 
-        self.save_hyperparameters()
+        # self.save_hyperparameters()
+
+    def load_state_dict(self, state_dict, strict: bool = True):
+        # Remove unexpected keys from the state_dict
+        keys_to_remove = ['d_model.embeddings.position_ids', 'p_model.embeddings.position_ids']
+        for key in keys_to_remove:
+            if key in state_dict:
+                del state_dict[key]
+        super().load_state_dict(state_dict, strict)
 
     def forward(self, drug_inputs, prot_inputs):
         d_outputs = self.d_model(drug_inputs['input_ids'], drug_inputs['attention_mask'])
