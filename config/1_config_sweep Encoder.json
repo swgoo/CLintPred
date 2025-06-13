@@ -1,11 +1,10 @@
 {
-	"name": "ClintPreds_Mod",
+	"name": "ClintPreds_encoder",
 
 	"chem_model" : "seyonec/PubChem10M_SMILES_BPE_450k",
 	"prot_model" : "Rostlab/prot_bert_bfd",
 	
-    "num_seed" : 120,
-	"gpu_id" : "0, 1,",
+    "num_seed" : [241, 342, 510],
 	
 	"data_folder": "./dataset/fin/",
 	"affinity_folder": "./dataset/affinity_fin/",
@@ -16,7 +15,7 @@
 
 	"checkpoint_name":"biomarker",
 	"train_dataType": "newdata_nonvivo_sort",
-	"model_type": "mlp",
+	"model_type": "encoder",
 	
 	"chem_max" : 512,
 	"prot_max" : 545,
@@ -26,15 +25,15 @@
 	"augmentation" : true,
 	
 	"sampling_type" : "all",
-	"feature_type" : "all",
+	"feature_type" : ["default", "features", "rdkit", "all"],
 	"test_rate" : 0.2,
     
-	"log_path" : "./log/ClintPreds_Mod",
+	"log_path" : "./log/",
 
-	"max_epoch": 5,
-	"batch_size": 16,
-	"num_workers": 0,
-	"act_func": ["relu", "relu", "relu"],
+	"max_epoch": 20,
+	"batch_size": 32,
+	"num_workers": 16,
+	"act_func": [["relu", "relu", "relu"]],
 
 	"lr": 5e-5,
 	"dropout" : 0.1
