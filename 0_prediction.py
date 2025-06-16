@@ -82,7 +82,26 @@ def predict_clearance(config):
         if checkpoint_name == "regression_bindingDB":
             model = BindingAffinityModel.load_from_checkpoint(ckpt_file)
         else:
-            model = BiomarkerModel.load_from_checkpoint(ckpt_file)
+            # model = BiomarkerModel.load_from_checkpoint(ckpt_file)
+            # .pt 파일에서 state dict 로드
+            biomarker_state_dict = torch.load('./checkpoint/biomarker.pt')
+            
+            # hparams.json 파일에서 하이퍼파라미터 로드
+            with open('./checkpoint/biomarker_hparams.json', 'r') as f:
+                hparams = json.load(f)
+                
+            model = BiomarkerModel(
+                lr=hparams['lr'],
+                dropout=hparams['dropout'],
+                layer_features=hparams['layer_features'],
+                drug_model_name=hparams['drug_model_name'],
+                prot_model_name=hparams['prot_model_name'],
+                d_pretrained=hparams['d_pretrained'],
+                p_pretrained=hparams['p_pretrained']
+            )
+            
+            # 모델에 state dict 적용
+            model.load_state_dict(biomarker_state_dict)
         
     predict_affinity = pd.read_csv(result_file) if os.path.exists(result_file) else predict_BindingAffinity(model, chem_tokenizer, prot_tokenizer, 
                                                                                                                 df_predict, df_protData,
