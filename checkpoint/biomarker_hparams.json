@@ -1,0 +1,1 @@
+{"drug_model_name": "seyonec/PubChem10M_SMILES_BPE_450k", "prot_model_name": "Rostlab/prot_bert_bfd", "lr": 5e-06, "dropout": 0.1, "layer_features": [768, 32, 1], "loss_fn": "smooth", "layer_limit": true, "d_pretrained": true, "p_pretrained": true}
