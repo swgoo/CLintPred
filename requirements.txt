@@ -1,12 +1,9 @@
-torch
-torchaudio
-torchvision
-pytorch-lightning
+pytorch_lightning
 transformers
 numpy
 pandas
 tqdm
-sklearn
+scikit-learn
 wandb
 easydict
 fastprogress

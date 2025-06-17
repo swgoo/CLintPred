@@ -1,0 +1,14 @@
+services:
+  dev:
+    build:
+      dockerfile: .dockerfile
+    command: tail -f /dev/null
+    volumes:
+      - .:/workspace
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
